@@ -8,7 +8,17 @@ repository = "https://github.com/jirutka/connman-resolvconf"
 license = "MIT"
 keywords = ["connman", "resolvconf", "openresolv"]
 
+[[bin]]
+name = "connman-resolvconfd"
+path = "src/main.rs"
+
 [dependencies]
+anyhow = "1.0"
+dbus = "0.9.5"
+env_logger = { version = "0.9.0", default-features = false, features = ["humantime"] }
+log = "0.4.16"
+nix = { version = "0.24", default-features = false, features = ["user"] }
+syslog = "6.0"
 
 [profile.release]
 codegen-units = 1
