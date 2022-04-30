@@ -1,12 +1,104 @@
-= connman-resolvconf
+= ConnMan–Resolvconf
 :proj-name: connman-resolvconf
 :gh-name: jirutka/{proj-name}
+:bin-name: {proj-name}d
+:version: 0.0.0
+:releases-uri: https://github.com/{gh-name}/releases/download/v{version}
+// Keep in sync with branch used in ci.yml.
+:alpine-branch: edge
+:alpine-pkgs-uri: https://pkgs.alpinelinux.org/packages?branch={alpine-branch}&name=
+// Keep in sync with release used in ci.yml.
+:ubuntu-release: 20.04
+:ubuntu-pkgs-uri: https://packages.ubuntu.com/focal/
+:ConnMan: https://git.kernel.org/pub/scm/network/connman/connman.git/about/[ConnMan]
 
 ifdef::env-github[]
 image:https://github.com/{gh-name}/workflows/CI/badge.svg[CI Workflow, link=https://github.com/{gh-name}/actions?query=workflow%3A%22CI%22]
 endif::env-github[]
 
-TBD
+A daemon that integrates {ConnMan} with https://en.wikipedia.org/wiki/Resolvconf[resolvconf(8)].
+It listens on D-Bus and calls `resolvconf` with new DNS information (nameservers and domain search) when a network service is connected, disconnected or updated.
+
+
+== Requirements
+
+.*Runtime*:
+* UNIX-like system _(tested on Linux only)_
+* https://www.freedesktop.org/wiki/Software/dbus/[D-Bus] 1.6 or higher
+* {ConnMan} _(tested with 1.40+)_
+* `resolvconf` from https://roy.marples.name/projects/openresolv/[openresolv] or Debian
+
+.*Build*:
+* https://www.rust-lang.org[Rust] stable toolchain _(tested with 1.60+)_
+* `pkg-config`
+* https://www.freedesktop.org/wiki/Software/dbus/[libdbus.so] 1.6 or higher (including headers, pkg-config file etc.)
+
+
+== Installation
+
+=== Using Pre-Built Binary
+
+You can choose either a statically linked (static) binary that should work on every Linux system (distro), or, if you’re using a sufficient recent GNU/libc-based distro (most major distros), a dynamically linked binary (see section <<pre-built-binaries>> for more information).
+
+*Static*:
+{releases-uri}/{proj-name}-{version}-x86_64-linux.tar.gz[[x86_64\]]
+{releases-uri}/{proj-name}-{version}-aarch64-linux.tar.gz[[aarch64\]]
+{nbsp}|{nbsp}
+*GNU/libc*:
+{releases-uri}/{proj-name}-{version}-x86_64-linux-gnu.tar.gz[[x86_64\]]
+{releases-uri}/{proj-name}-{version}-aarch64-linux-gnu.tar.gz[[aarch64\]]
+{releases-uri}/{proj-name}-{version}-armv7-linux-gnueabihf.tar.gz[[armv7\]]
+{releases-uri}/{proj-name}-{version}-powerpc64le-linux-gnu.tar.gz[[ppc64le\]]
+
+. Download, verify and extract the release tarball for your CPU architecture (pick the right link from the list above), for example:
++
+[source, sh, subs="verbatim, attributes"]
+----
+curl -sSLO {releases-uri}/{proj-name}-{version}-x86_64-linux.tar.gz
+curl -sSL {releases-uri}/checksums.txt | sha256sum -c --ignore-missing
+tar -xzf {proj-name}-{version}-*.tar.gz
+----
+
+. Install `{bin-name}` somewhere on your `PATH`, e.g. `/usr/local/bin`:
++
+[source, sh, subs="verbatim, attributes"]
+install -D -m755 {proj-name}-{version}-*/{bin-name} /usr/local/bin/
+
+
+=== On Alpine Linux
+
+Install package {proj-name} from the Alpine’s Edge community repository:
+
+[source, sh, subs="attributes"]
+apk add {proj-name}
+
+
+=== From Source Tarball
+
+[source, sh, subs="+attributes"]
+----
+wget https://github.com/{gh-name}/archive/v{version}/{proj-name}-{version}.tar.gz
+tar -xzf {proj-name}-{version}.tar.gz
+cd {proj-name}-{version}
+
+cargo build --release --locked
+install -D -m755 target/release/{bin-name} -t /usr/local/bin/
+----
+
+
+[[pre-built-binaries]]
+== Pre-Built Binaries
+
+Pre-built binaries available in the project’s https://github.com/{gh-name}/releases[Releases] are built automatically using GitHub Actions.
+You can see the workflow configuration in link:.github/workflows/ci.yml[].
+Binaries for other architectures than x86_64 are cross-compiled.
+
+Static binaries are built on Alpine Linux {alpine-branch}, statically linked with {alpine-pkgs-uri}musl[musl] libc and {alpine-pkgs-uri}dbus[dbus] library.
+They have zero dependencies and so works on every Linux system (distro) regardless of used libc.
+
+Dynamic binaries are built on Ubuntu {ubuntu-release}, linked with GNU {ubuntu-pkgs-uri}/libc6[libc6] and {ubuntu-pkgs-uri}/libdbus-1-3[libdbus-1].
+Since they are dynamically linked, you must have a compatible version of lidbus-1.so installed on your system.
+
 
 == License
 
