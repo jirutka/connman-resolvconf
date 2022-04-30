@@ -1,0 +1,345 @@
+name: CI
+on:
+  - push
+  - pull_request
+
+env:
+  CRATE_NAME: connman-resolvconf
+  BIN_NAME: connman-resolvconfd
+
+jobs:
+  check:
+    name: Run linters
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v1
+
+      - name: Install Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          override: true
+          profile: minimal
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Install libdbus-1-dev
+        run: sudo apt-get install libdbus-1-dev
+
+      - name: Run clippy linter
+        run: cargo clippy
+
+      - name: Run rustfmt check (ignore any errors)
+        run: cargo fmt -- --check || true
+
+      - name: Resolve crate version and check git tag name
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          crate_version="$(cargo pkgid | cut -d '#' -f2 | grep -o '[^:]*$')"
+          git_tag=${GITHUB_REF#refs/tags/}
+          if [ "$git_tag" != "v$crate_version" ]; then
+              printf '::error::%s\n' "Crate version ($crate_version) does not match git tag ($git_tag)"
+              exit 1
+          fi
+
+  build-multi-glibc:
+    name: Build for ${{ matrix.rust-target }}
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rust-target: x86_64-unknown-linux-gnu
+            os-target: x86_64-linux-gnu
+            os-arch: amd64
+
+          - rust-target: aarch64-unknown-linux-gnu
+            os-target: aarch64-linux-gnu
+            os-arch: arm64
+
+          - rust-target: armv7-unknown-linux-gnueabihf
+            os-target: arm-linux-gnueabihf
+            os-arch: armhf
+
+          - rust-target: powerpc64le-unknown-linux-gnu
+            os-target: powerpc64le-linux-gnu
+            os-arch: ppc64el
+    env:
+      TARGET_DIR: target/${{ matrix.rust-target }}/release
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v1
+
+      - name: Install Rust stable for ${{ matrix.rust-target }}
+        uses: actions-rs/toolchain@v1
+        with:
+          override: true
+          profile: minimal
+          target: ${{ matrix.rust-target }}
+          toolchain: stable
+
+      - name: Add apt sources for ${{ matrix.os-arch }}
+        if: matrix.os-arch != 'amd64'
+        run: |
+          dpkg --add-architecture ${{ matrix.os-arch }}
+
+          release=$(. /etc/os-release && echo "$UBUNTU_CODENAME")
+          sed -i 's/^deb /deb [arch=amd64] /' /etc/apt/sources.list
+          printf 'deb [arch=${{ matrix.os-arch }}] http://ports.ubuntu.com/ %s main restricted\n' \
+              $release $release-updates $release-security \
+              >> /etc/apt/sources.list
+          apt-get update
+        shell: sudo sh -e {0}
+
+      - name: Install linker for ${{ matrix.os-target }}
+        if: matrix.os-arch != 'amd64'
+        run: sudo apt-get install gcc-${{ matrix.os-target }}
+
+      - name: Install libdbus-1-dev
+        run: sudo apt-get install libdbus-1-dev:${{ matrix.os-arch }}
+
+      - name: Build binary
+        env:
+          CARGO_BUILD_TARGET: ${{ matrix.rust-target }}
+          CARGO_PROFILE_RELEASE_STRIP: symbols
+          PKG_CONFIG_SYSROOT_DIR: /usr/lib/${{ matrix.os-target }}
+          PKG_CONFIG_LIBDIR: /usr/lib/${{ matrix.os-target }}/pkgconfig
+          RUSTFLAGS: -C linker=/usr/bin/${{ matrix.os-target }}-gcc
+        run: cargo build --release --locked
+
+      - name: Inspect binary
+        run: |
+          ls -l $BIN_NAME
+          file $BIN_NAME
+          readelf -hd $BIN_NAME
+        working-directory: ${{ env.TARGET_DIR }}
+
+      - if: matrix.os-arch == 'amd64'
+        run: ./${{ env.BIN_NAME }} --version
+        working-directory: ${{ env.TARGET_DIR }}
+
+      - name: Upload binary to artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.rust-target }}
+          path: ${{ env.TARGET_DIR }}/${{ env.BIN_NAME }}
+          if-no-files-found: error
+
+  build-x86_64-musl:
+    name: Build for ${{ matrix.rust-target }} (statically linked)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rust-target: x86_64-unknown-linux-musl
+    env:
+      TARGET_DIR: target/release
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v1
+
+      - name: Install Alpine Linux with dependencies
+        uses: jirutka/setup-alpine@v1
+        with:
+          branch: edge
+          packages: >
+            build-base
+            rustup
+            dbus-dev
+            dbus-static
+
+      # We cannot build with Alpine's rust due to https://gitlab.alpinelinux.org/alpine/aports/-/issues/12941.
+      - name: Install Rust stable toolchain via rustup
+        run: rustup-init --target ${{ matrix.rust-target }} --default-toolchain stable --profile minimal -y
+        shell: alpine.sh {0}
+
+      - name: Build binary
+        env:
+          CARGO_PROFILE_RELEASE_STRIP: symbols
+          PKG_CONFIG_ALL_STATIC: '1'
+          SYSROOT: /dummy  # workaround for https://github.com/rust-lang/pkg-config-rs/issues/102
+        run: cargo build --release --locked
+        shell: alpine.sh {0}
+
+      - name: Inspect binary
+        run: |
+          ls -l $BIN_NAME
+          file $BIN_NAME
+          readelf -hd $BIN_NAME
+        working-directory: ${{ env.TARGET_DIR }}
+        shell: alpine.sh {0}
+
+      - run: ./${{ env.BIN_NAME }} --version
+        working-directory: ${{ env.TARGET_DIR }}
+        shell: alpine.sh {0}
+
+      - name: Upload binary to artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.rust-target }}
+          path: ${{ env.TARGET_DIR }}/${{ env.BIN_NAME }}
+          if-no-files-found: error
+
+  build-x86_64-alpine-musl:
+    name: Build x86_64-alpine-linux-musl (dynamically linked)
+    runs-on: ubuntu-latest
+    env:
+      TARGET_DIR: target/release
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v1
+
+      - name: Install Alpine Linux
+        uses: jirutka/setup-alpine@v1
+        with:
+          packages: build-base cargo dbus-dev
+
+      - name: Build binary
+        run: |
+          cargo build --release --locked
+          strip $TARGET_DIR/$BIN_NAME
+        shell: alpine.sh {0}
+
+      - name: Inspect binary
+        run: |
+          ls -l $BIN_NAME
+          file $BIN_NAME
+          readelf -hd $BIN_NAME
+        working-directory: ${{ env.TARGET_DIR }}
+        shell: alpine.sh {0}
+
+      - run: ./${{ env.BIN_NAME }} --version
+        working-directory: ${{ env.TARGET_DIR }}
+        shell: alpine.sh {0}
+
+  build-cross-musl:
+    name: Build for ${{ matrix.rust-target }} (statically linked)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rust-target: aarch64-unknown-linux-musl
+            os-arch: aarch64
+
+          # FIXME: undefined symbol __fstat_time64, __clock_gettime64 etc.
+          #- rust-target: armv7-unknown-linux-musleabihf
+          #  os-arch: armv7
+    env:
+      TARGET_DIR: target/${{ matrix.rust-target }}/release
+      CROSS_SYSROOT: /mnt/alpine-${{ matrix.os-arch }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v1
+
+      - name: Install Alpine Linux for ${{ matrix.os-arch }} (target arch)
+        id: alpine-target
+        uses: jirutka/setup-alpine@v1
+        with:
+          shell-name: alpine-target.sh
+          arch: ${{ matrix.os-arch }}
+          branch: edge
+          packages: >
+            dbus-dev
+            dbus-static
+
+      - name: Install Alpine Linux for x86_64 (build arch)
+        uses: jirutka/setup-alpine@v1
+        with:
+          shell-name: alpine.sh
+          arch: x86_64
+          branch: edge
+          packages: >
+            build-base
+            pkgconf
+            lld
+            rustup
+          volumes: ${{ steps.alpine-target.outputs.root-path }}:${{ env.CROSS_SYSROOT }}
+
+      - name: Install Rust stable toolchain via rustup
+        run: rustup-init --target ${{ matrix.rust-target }} --default-toolchain stable --profile minimal -y
+        shell: alpine.sh {0}
+
+      - name: Build binary
+        env:
+          CARGO_BUILD_TARGET: ${{ matrix.rust-target }}
+          CARGO_PROFILE_RELEASE_STRIP: symbols
+          PKG_CONFIG_ALL_STATIC: '1'
+          PKG_CONFIG_LIBDIR: ${{ env.CROSS_SYSROOT }}/usr/lib/pkgconfig
+          RUSTFLAGS: -C linker=/usr/bin/ld.lld
+          SYSROOT: /dummy  # workaround for https://github.com/rust-lang/pkg-config-rs/issues/102
+        run: |
+          # Workaround for https://github.com/rust-lang/pkg-config-rs/issues/102.
+          echo -e '#!/bin/sh\nPKG_CONFIG_SYSROOT_DIR=${{ env.CROSS_SYSROOT }} exec pkgconf "$@"' \
+              | install -m755 /dev/stdin pkg-config
+          export PKG_CONFIG="$(pwd)/pkg-config"
+
+          cargo build --release --locked --verbose
+        shell: alpine.sh {0}
+
+      - name: Inspect binary
+        run: |
+          ls -l $BIN_NAME
+          file $BIN_NAME
+          readelf -hd $BIN_NAME
+        working-directory: ${{ env.TARGET_DIR }}
+        shell: alpine.sh {0}
+
+      - name: connman-resolvconfd --version
+        run: ./$BIN_NAME --version
+        working-directory: ${{ env.TARGET_DIR }}
+        shell: alpine-target.sh {0}
+
+      - name: Upload binary to artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.rust-target }}
+          path: ${{ env.TARGET_DIR }}/${{ env.BIN_NAME }}
+          if-no-files-found: error
+
+  publish:
+    name: Publish binaries to Releases
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && github.event_name != 'pull_request' }}
+    needs:
+      - build-multi-glibc
+      - build-x86_64-musl
+      - build-cross-musl
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v1
+
+      - name: Download binaries from artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: artifacts
+
+      - name: Create tarballs
+        run: |
+          version=${GITHUB_REF#refs/tags/v}
+          cd artifacts
+          for target in *; do
+              tarname=${CRATE_NAME}-${version}-${target/-unknown/}
+              tarname=${tarname%-musl}
+
+              install -D -m755 $target/$BIN_NAME -t "$tarname"/
+              install -m644 ../LICENSE -t "$tarname"/
+
+              tar -czf "$tarname.tar.gz" "$tarname"
+              ls -la "$tarname.tar.gz"
+          done
+
+      - name: Generate checksums.txt
+        run: shasum -a 256 *.tar.gz | tee checksums.txt
+        working-directory: artifacts
+
+      - name: Upload binaries to Releases
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/*.tar.gz
+            artifacts/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
