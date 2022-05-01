@@ -1,0 +1,18 @@
+#!/sbin/openrc-run
+
+description="ConnMan integration with resolvconf(8)"
+
+: ${log_level:="INFO"}
+: ${start_wait:=50}  # milliseconds
+
+command="/usr/sbin/connman-resolvconfd"
+command_args="--syslog --log $log_level"
+command_background="yes"
+pidfile="/run/$RC_SVCNAME.pid"
+start_stop_daemon_args="--wait $start_wait"
+
+depend() {
+	need connman dbus
+	use logger
+	before net
+}

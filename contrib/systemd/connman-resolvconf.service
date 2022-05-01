@@ -1,0 +1,19 @@
+# Warning: This unit file has not been tested! If you use it, please let me know in
+# https://github.com/jirutka/connman-resolvconf/issues/.
+
+[Unit]
+Description=ConnMan integration with resolvconf(8)
+After=connman.service dbus.service
+Before=network.target multi-user.target shutdown.target
+Wants=connman.service
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/connman-resolvconfd --syslog
+Restart=on-failure
+StandardOutput=null
+ProtectHome=true
+ProtectSystem=full
+
+[Install]
+WantedBy=connman.service

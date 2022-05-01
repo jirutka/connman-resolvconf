@@ -1,0 +1,8 @@
+# Configuration for /etc/init.d/connman-resolvconf
+
+# The user to run connman-resolvconfd daemon.
+#command_user=root
+
+# The logging level: OFF, ERROR, WARN, INFO, DEBUG, or TRACE.
+# Note that the daemon is logging to syslog.
+#log_level="INFO"
