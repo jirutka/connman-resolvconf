@@ -97,7 +97,7 @@ fn main() {
     let mut iter = env::args().skip(1);
     while let Some(opt) = iter.next() {
         match opt.as_str() {
-            "-l" | "--log" => {
+            "-l" | "--log-level" => {
                 if let Some(arg) = iter.next() {
                     args.log_filter = arg;
                 } else {
