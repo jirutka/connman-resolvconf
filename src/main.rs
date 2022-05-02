@@ -157,7 +157,7 @@ fn run(args: &AppArgs) -> anyhow::Result<()> {
     services.on_update(move |id, update, services| {
         trace!("Received PropertyChanged: {:?}", update);
         match update {
-            ServiceUpdate::State(ref state) if state == "ready" => {
+            ServiceUpdate::State(ref state) if state == "ready" || state == "online" => {
                 match services.get(id) {
                     Ok(service) => resolvconf
                         .insert(service)
