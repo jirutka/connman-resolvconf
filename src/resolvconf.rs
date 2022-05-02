@@ -7,8 +7,8 @@ use anyhow::{bail, Context, Result};
 use log::{debug, trace};
 use nix::unistd::Uid;
 
+use crate::utils::which;
 
-const DEFAULT_RESOLVCONF: &str = "/usr/sbin/resolvconf";
 
 /// Interface for calling `resolvconf(8)` command.
 #[derive(Clone)]
@@ -17,17 +17,19 @@ pub struct Resolvconf {
 }
 
 impl Resolvconf {
-    pub fn new() -> Resolvconf {
-        Resolvconf {
-            path: env::var("RESOLVCONF").unwrap_or_else(|_| DEFAULT_RESOLVCONF.into()),
-        }
+    pub fn new() -> Result<Resolvconf> {
+        let name_or_path = env::var("RESOLVCONF").unwrap_or_else(|_| "resolvconf".into());
+
+        let path = which(&name_or_path)?;
+        check_permissions(&path)?;
+
+        Ok(Resolvconf { path })
     }
 
     /// Adds DNS information to the specified interface (in resolv.conf format).
     pub fn add(&self, interface: &str, content: &str) -> Result<()> {
-        check_permissions(&self.path)?;
-
         debug!("Executing command: {} -a {}", self.path, interface);
+
         let mut child = Command::new(&self.path)
             .args(["-a", interface])
             .stdin(Stdio::piped())
@@ -54,9 +56,8 @@ impl Resolvconf {
 
     /// Deletes DNS information from the specified interface.
     pub fn del(&self, interface: &str) -> Result<()> {
-        check_permissions(&self.path)?;
-
         debug!("Executing command: {} -d {}", self.path, interface);
+
         let status = Command::new(&self.path)
             .args(["-d", interface])
             .stdin(Stdio::null())

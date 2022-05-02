@@ -16,6 +16,7 @@ use resolvconf::Resolvconf;
 
 mod connman;
 mod resolvconf;
+mod utils;
 
 
 const PROG_NAME: &str = env!("CARGO_PKG_NAME");
@@ -32,11 +33,11 @@ struct ResolvconfState {
 }
 
 impl ResolvconfState {
-    fn new() -> ResolvconfState {
-        ResolvconfState {
+    fn new() -> anyhow::Result<ResolvconfState> {
+        Ok(ResolvconfState {
             services: HashMap::new(),
-            resolvconf: Resolvconf::new(),
-        }
+            resolvconf: Resolvconf::new()?,
+        })
     }
 
     fn insert(&mut self, service: Service) -> anyhow::Result<()> {
@@ -146,7 +147,7 @@ fn run(args: &AppArgs) -> anyhow::Result<()> {
     let connection = Connection::new_system().context("Failed to connect to the system D-Bus")?;
 
     let services = Services::new(&connection, Duration::from_millis(5000));
-    let mut resolvconf = ResolvconfState::new();
+    let mut resolvconf = ResolvconfState::new()?;
 
     services
         .get_active()?
