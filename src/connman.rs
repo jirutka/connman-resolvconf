@@ -47,17 +47,17 @@ impl Service {
         self.interface.as_ref().unwrap_or(&self.id)
     }
 
-    pub fn update(&mut self, change: ServiceUpdate) -> bool {
+    pub fn update(&mut self, change: &ServiceUpdate) -> bool {
         use ServiceUpdate::*;
         match change {
-            State(value) if self.state != value => {
-                self.state = value
+            State(value) if self.state != *value => {
+                self.state = value.clone()
             }
-            Domains(value) if self.domains != value => {
-                self.domains = value
+            Domains(value) if self.domains != *value => {
+                self.domains = value.clone()
             }
-            Nameservers(value) if self.nameservers != value => {
-                self.nameservers = value
+            Nameservers(value) if self.nameservers != *value => {
+                self.nameservers = value.clone()
             }
             _ => return false
         };

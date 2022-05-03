@@ -6,7 +6,7 @@ use std::env;
 use std::process::exit;
 use std::time::Duration;
 
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use dbus::blocking::Connection;
 use log::{error, info, trace, warn, LevelFilter};
 use syslog::Facility;
@@ -51,23 +51,26 @@ impl ResolvconfState {
     }
 
     fn update(&mut self, id: &str, update: ServiceUpdate) -> anyhow::Result<()> {
-        let service = self
-            .services
-            .get_mut(id)
-            .ok_or_else(|| anyhow!("Unknown service: {}", id))?;
+        if let Some(service) = self.services.get_mut(id) {
+            // Update mutates the service.
+            if service.update(&update) {
+                let iface = service.interface_or_id();
 
-        // Update mutates the service.
-        if service.update(update) {
-            let iface = service.interface_or_id();
-
-            if service.state == "disconnect" {
-                info!("Removing DNS information for {} ({})", iface, service.id);
-                self.resolvconf.del(iface)?;
-                self.services.remove(id);
-            } else {
-                info!("Updating DNS information for {} ({})", iface, service.id);
-                self.resolvconf.add(iface, &service.resolvconf())?;
+                match service.state.as_ref() {
+                    "ready" | "online" => {
+                        info!("Updating DNS information for {} ({})", iface, service.id);
+                        self.resolvconf.add(iface, &service.resolvconf())?;
+                    }
+                    "disconnect" => {
+                        info!("Removing DNS information for {} ({})", iface, service.id);
+                        self.resolvconf.del(iface)?;
+                        self.services.remove(id);
+                    }
+                    _ => bail!("Unexpected service update in state {}: {:?}", service.state, update)
+                }
             }
+        } else {
+            trace!("Ignoring update for unknown service: {}", id);
         }
         Ok(())
     }
