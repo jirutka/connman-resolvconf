@@ -41,10 +41,12 @@ impl ResolvconfState {
     }
 
     fn insert(&mut self, service: Service) -> anyhow::Result<()> {
-        let iface = service.interface_or_id();
+        if !service.nameservers.is_empty() {
+            let iface = service.interface_or_id();
 
-        info!("Adding DNS information for {} ({})", iface, service.id);
-        self.resolvconf.add(iface, &service.resolvconf())?;
+            info!("Adding DNS information for {} ({})", iface, service.id);
+            self.resolvconf.add(iface, &service.resolvconf())?;
+        }
         self.services.insert(service.id.clone(), service);
 
         Ok(())
