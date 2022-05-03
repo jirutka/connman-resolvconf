@@ -28,7 +28,7 @@ mod net_connman {
 }
 
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Service {
     /// Service ID (the last part of the service D-Bus path)
     pub id: String,

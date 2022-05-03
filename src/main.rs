@@ -41,6 +41,10 @@ impl ResolvconfState {
     }
 
     fn insert(&mut self, service: Service) -> anyhow::Result<()> {
+        // If we already have the given service with the same attributes, do nothing.
+        if self.services.get(&service.id).map_or(false, |cur| *cur == service) {
+            return Ok(());
+        }
         if !service.nameservers.is_empty() {
             let iface = service.interface_or_id();
 
