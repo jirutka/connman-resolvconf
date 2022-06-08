@@ -7,7 +7,7 @@ use std::process::exit;
 use std::time::Duration;
 
 use anyhow::{anyhow, bail, Context};
-use dbus::blocking::Connection;
+use dbus::blocking::LocalConnection;
 use log::{error, info, trace, warn, LevelFilter};
 use syslog::Facility;
 
@@ -153,7 +153,8 @@ fn run(args: &AppArgs) -> anyhow::Result<()> {
 
     info!("Starting {} {}", PROG_NAME, PROG_VERSION);
 
-    let connection = Connection::new_system().context("Failed to connect to the system D-Bus")?;
+    let connection =
+        LocalConnection::new_system().context("Failed to connect to the system D-Bus")?;
 
     let services = Services::new(&connection, Duration::from_millis(5000));
     let mut resolvconf = ResolvconfState::new()?;

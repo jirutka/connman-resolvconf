@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use anyhow::anyhow;
 use dbus::arg;
-use dbus::blocking::Connection;
+use dbus::blocking::LocalConnection;
 use dbus::message::MatchRule;
 use log::{error, warn};
 
@@ -133,13 +133,13 @@ impl arg::ReadAll for ServiceUpdate {
 
 
 pub struct Services<'a> {
-    proxy: dbus::blocking::Proxy<'a, &'a Connection>,
+    proxy: dbus::blocking::Proxy<'a, &'a LocalConnection>,
 }
 
 impl<'a> Services<'a> {
     const SERVICE_PATH_PREFIX: &'static str = "/net/connman/service/";
 
-    pub fn new(connection: &'a Connection, timeout: Duration) -> Services<'a> {
+    pub fn new(connection: &'a LocalConnection, timeout: Duration) -> Services<'a> {
         Services {
             proxy: connection.with_proxy(BUS_NAME, "/", timeout),
         }
@@ -177,7 +177,7 @@ impl<'a> Services<'a> {
 
     pub fn on_update<F>(&self, mut callback: F) -> Result<dbus::channel::Token, dbus::Error>
     where
-        F: FnMut(&str, ServiceUpdate, Services<'_>) + Send + 'static,
+        F: FnMut(&str, ServiceUpdate, Services<'_>) + 'static,
     {
         let rule =
             MatchRule::new_signal("net.connman.Service", "PropertyChanged").with_sender(BUS_NAME);
