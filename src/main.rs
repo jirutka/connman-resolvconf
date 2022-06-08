@@ -1,14 +1,19 @@
 #![warn(warnings, rust_2018_idioms)]
 #![forbid(unsafe_code)]
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::env;
 use std::process::exit;
+use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{anyhow, bail, Context};
 use dbus::blocking::LocalConnection;
 use log::{error, info, trace, warn, LevelFilter};
+use signal_hook::consts::SIGTERM;
 use syslog::Facility;
 
 use connman::{Service, ServiceUpdate, Services};
@@ -24,6 +29,7 @@ const PROG_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 struct AppArgs {
     log_filter: String,
+    cleanup_on_term: bool,
     syslog: bool,
 }
 
@@ -80,6 +86,17 @@ impl ResolvconfState {
         }
         Ok(())
     }
+
+    fn remove_all(&mut self) {
+        for (_, service) in self.services.drain() {
+            let iface = service.interface_or_id();
+
+            info!("Removing DNS information for {} ({})", iface, service.id);
+            self.resolvconf
+                .del(iface)
+                .unwrap_or_else(|e| warn!("{:#}", e));
+        }
+    }
 }
 
 impl Service {
@@ -101,6 +118,7 @@ impl Service {
 fn main() {
     let mut args = AppArgs {
         log_filter: env::var("RUST_LOG").unwrap_or_else(|_| "INFO".into()),
+        cleanup_on_term: true,
         syslog: false,
     };
 
@@ -115,6 +133,9 @@ fn main() {
                     exit(100);
                 }
             }
+            "-C" | "--no-cleanup-on-term" => {
+                args.cleanup_on_term = false;
+            }
             "-s" | "--syslog" => {
                 args.syslog = true;
             }
@@ -124,7 +145,7 @@ fn main() {
             }
             "-h" | "--help" => {
                 println!(
-                    "Usage: {} [--log <level>] [--syslog] [--version] [--help]",
+                    "Usage: {} [--log <level>] [--no-cleanup-on-term] [--syslog] [--version] [--help]",
                     PROG_NAME
                 );
                 exit(0)
@@ -137,7 +158,7 @@ fn main() {
     }
 
     match run(&args) {
-        Ok(_) => info!("Terminating"),
+        Ok(_) => exit(0),
         Err(e) => {
             error!("{:#}", e);
             if args.syslog {
@@ -164,24 +185,43 @@ fn run(args: &AppArgs) -> anyhow::Result<()> {
         .into_iter()
         .try_for_each(|service| resolvconf.insert(service))?;
 
-    services.on_update(move |id, update, services| {
-        trace!("Received PropertyChanged: {:?}", update);
-        match update {
-            ServiceUpdate::State(ref state) if state == "ready" || state == "online" => {
-                match services.get(id) {
-                    Ok(service) => resolvconf
-                        .insert(service)
-                        .unwrap_or_else(|e| error!("{:#}", e)),
-                    Err(e) => error!("{:#}", e),
+    let resolvconf = Rc::new(RefCell::new(resolvconf));
+
+    {
+        let resolvconf = Rc::clone(&resolvconf);
+
+        services.on_update(move |id, update, services| {
+            trace!("Received PropertyChanged: {:?}", update);
+            match update {
+                ServiceUpdate::State(ref state) if state == "ready" || state == "online" => {
+                    match services.get(id) {
+                        Ok(service) => resolvconf
+                            .borrow_mut()
+                            .insert(service)
+                            .unwrap_or_else(|e| error!("{:#}", e)),
+                        Err(e) => error!("{:#}", e),
+                    }
                 }
-            }
-            _ => resolvconf
-                .update(id, update)
-                .unwrap_or_else(|e| error!("{:#}", e))
-        };
-    })?;
+                _ => resolvconf
+                    .borrow_mut()
+                    .update(id, update)
+                    .unwrap_or_else(|e| error!("{:#}", e)),
+            };
+        })?;
+    }
+
+    let sigterm = Arc::new(AtomicBool::new(false));
+    signal_hook::flag::register(SIGTERM, Arc::clone(&sigterm))
+        .context("Failed to register SIGTERM handler")?;
 
     loop {
+        if sigterm.load(Ordering::Relaxed) {
+            if args.cleanup_on_term {
+                info!("Caught SIGTERM, cleaning up and exiting...");
+                resolvconf.borrow_mut().remove_all();
+            }
+            return Ok(());
+        }
         connection.process(Duration::from_millis(1000))?;
     }
 }
