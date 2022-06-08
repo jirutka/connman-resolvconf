@@ -9,7 +9,7 @@
 :alpine-pkgs-uri: https://pkgs.alpinelinux.org/packages?branch={alpine-branch}&name=
 // Keep in sync with release used in ci.yml.
 :ubuntu-release: 20.04
-:ubuntu-pkgs-uri: https://packages.ubuntu.com/focal/
+:ubuntu-pkgs-uri: https://packages.ubuntu.com/focal
 :ConnMan: https://git.kernel.org/pub/scm/network/connman/connman.git/about/[ConnMan]
 
 ifdef::env-github[]
