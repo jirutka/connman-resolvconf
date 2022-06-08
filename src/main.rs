@@ -78,6 +78,7 @@ impl ResolvconfState {
                         self.resolvconf.del(iface)?;
                         self.services.remove(id);
                     }
+                    "configuration" => (),  // ignore
                     _ => bail!("Unexpected service update in state {}: {:?}", service.state, update)
                 }
             }
