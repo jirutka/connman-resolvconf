@@ -4,6 +4,7 @@ on:
   - pull_request
 
 env:
+  ALPINE_BRANCH: v3.16
   CRATE_NAME: connman-resolvconf
   BIN_NAME: connman-resolvconfd
 
@@ -143,7 +144,7 @@ jobs:
       - name: Install Alpine Linux with dependencies
         uses: jirutka/setup-alpine@v1
         with:
-          branch: edge
+          branch: ${{ env.ALPINE_BRANCH }}
           packages: >
             build-base
             rustup
@@ -240,7 +241,7 @@ jobs:
         with:
           shell-name: alpine-target.sh
           arch: ${{ matrix.os-arch }}
-          branch: edge
+          branch: ${{ env.ALPINE_BRANCH }}
           packages: >
             dbus-dev
             dbus-static
@@ -250,7 +251,7 @@ jobs:
         with:
           shell-name: alpine.sh
           arch: x86_64
-          branch: edge
+          branch: ${{ env.ALPINE_BRANCH }}
           packages: >
             build-base
             pkgconf

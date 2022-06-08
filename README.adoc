@@ -5,7 +5,7 @@
 :version: 0.1.0
 :releases-uri: https://github.com/{gh-name}/releases/download/v{version}
 // Keep in sync with branch used in ci.yml.
-:alpine-branch: edge
+:alpine-branch: v3.16
 :alpine-pkgs-uri: https://pkgs.alpinelinux.org/packages?branch={alpine-branch}&name=
 // Keep in sync with release used in ci.yml.
 :ubuntu-release: 20.04
