@@ -1,4 +1,6 @@
 = ConnMan–Resolvconf
+:toc: macro
+:toc-title:
 :proj-name: connman-resolvconf
 :gh-name: jirutka/{proj-name}
 :bin-name: {proj-name}d
@@ -18,6 +20,12 @@ endif::env-github[]
 
 A daemon that integrates {ConnMan} with https://en.wikipedia.org/wiki/Resolvconf[resolvconf(8)].
 It listens on D-Bus and calls `resolvconf` with new DNS information (nameservers and domain search) when a network service is connected, disconnected or updated.
+
+
+[discrete]
+== Table of Contents
+
+toc::[]
 
 
 == Requirements
