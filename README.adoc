@@ -4,7 +4,7 @@
 :proj-name: connman-resolvconf
 :gh-name: jirutka/{proj-name}
 :bin-name: {proj-name}d
-:version: 0.1.0
+:version: 0.2.0
 :releases-uri: https://github.com/{gh-name}/releases/download/v{version}
 // Keep in sync with branch used in ci.yml.
 :alpine-branch: v3.16

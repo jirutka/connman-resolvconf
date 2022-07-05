@@ -1,6 +1,6 @@
 [package]
 name = "connman-resolvconf"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Jakub Jirutka <jakub@jirutka.cz>"]
 edition = "2021"
 description = "ConnMan integration with resolvconf(8)"
