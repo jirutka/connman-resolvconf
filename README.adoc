@@ -44,7 +44,27 @@ toc::[]
 
 == Installation
 
+=== On Alpine Linux
+
+If you’re using *Alpine Linux* v3.16 or later, you can install {alpine-pkgs-uri}{proj-name}[{proj-name}] package from the Alpine’s community repository:
+
+[source, sh, subs="+attributes"]
+apk add {proj-name}
+
+
+=== On Arch Linux
+
+If you’re using *Arch Linux*, you can install https://aur.archlinux.org/packages/{proj-name}[{proj-name}] package from https://aur.archlinux.org/[AUR]:
+
+[source, sh, subs="+attributes"]
+yay -S {proj-name}
+
+Or use another AUR helper.
+
+
 === Using Pre-Built Binary
+
+If your package manager doesn’t provide {proj-name}, you can use a pre-built binary.
 
 You can choose either a statically linked (static) binary that should work on every Linux system (distro), or, if you’re using a sufficient recent GNU/libc-based distro (most major distros), a dynamically linked binary (see section <<pre-built-binaries>> for more information).
 
@@ -71,24 +91,6 @@ tar -xzf {proj-name}-{version}-*.tar.gz
 +
 [source, sh, subs="verbatim, attributes"]
 install -D -m755 {proj-name}-{version}-*/{bin-name} /usr/local/bin/
-
-
-=== On Alpine Linux
-
-Install package {alpine-pkgs-uri}{proj-name}[{proj-name}] on Alpine Linux v3.16 or later:
-
-[source, sh, subs="attributes"]
-apk add {proj-name}
-
-
-=== On Arch Linux
-
-Install https://aur.archlinux.org/packages/{proj-name}[{proj-name}] package from https://aur.archlinux.org/[AUR]:
-
-[source, sh, subs="+attributes"]
-yay -S {proj-name}
-
-Or use another AUR helper.
 
 
 === From Source Tarball
