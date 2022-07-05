@@ -81,6 +81,16 @@ Install package {alpine-pkgs-uri}{proj-name}[{proj-name}] on Alpine Linux v3.16 
 apk add {proj-name}
 
 
+=== On Arch Linux
+
+Install https://aur.archlinux.org/packages/{proj-name}[{proj-name}] package from https://aur.archlinux.org/[AUR]:
+
+[source, sh, subs="+attributes"]
+yay -S {proj-name}
+
+Or use another AUR helper.
+
+
 === From Source Tarball
 
 [source, sh, subs="+attributes"]
