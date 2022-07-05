@@ -16,6 +16,7 @@
 
 ifdef::env-github[]
 image:https://github.com/{gh-name}/workflows/CI/badge.svg[CI Workflow, link=https://github.com/{gh-name}/actions?query=workflow%3A%22CI%22]
+image:https://repology.org/badge/tiny-repos/{proj-name}.svg[Packaging status, link=https://repology.org/project/{proj-name}]
 endif::env-github[]
 
 A daemon that integrates {ConnMan} with https://en.wikipedia.org/wiki/Resolvconf[resolvconf(8)].
