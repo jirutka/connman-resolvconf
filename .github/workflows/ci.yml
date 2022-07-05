@@ -15,7 +15,7 @@ jobs:
     continue-on-error: true
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
@@ -70,7 +70,7 @@ jobs:
       TARGET_DIR: target/${{ matrix.rust-target }}/release
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
 
       - name: Install Rust stable for ${{ matrix.rust-target }}
         uses: actions-rs/toolchain@v1
@@ -121,7 +121,7 @@ jobs:
         working-directory: ${{ env.TARGET_DIR }}
 
       - name: Upload binary to artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.rust-target }}
           path: ${{ env.TARGET_DIR }}/${{ env.BIN_NAME }}
@@ -139,7 +139,7 @@ jobs:
       TARGET_DIR: target/release
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
 
       - name: Install Alpine Linux with dependencies
         uses: jirutka/setup-alpine@v1
@@ -177,7 +177,7 @@ jobs:
         shell: alpine.sh {0}
 
       - name: Upload binary to artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.rust-target }}
           path: ${{ env.TARGET_DIR }}/${{ env.BIN_NAME }}
@@ -190,7 +190,7 @@ jobs:
       TARGET_DIR: target/release
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
 
       - name: Install Alpine Linux
         uses: jirutka/setup-alpine@v1
@@ -233,7 +233,7 @@ jobs:
       CROSS_SYSROOT: /mnt/alpine-${{ matrix.os-arch }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
 
       - name: Install Alpine Linux for ${{ matrix.os-arch }} (target arch)
         id: alpine-target
@@ -294,7 +294,7 @@ jobs:
         shell: alpine-target.sh {0}
 
       - name: Upload binary to artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.rust-target }}
           path: ${{ env.TARGET_DIR }}/${{ env.BIN_NAME }}
@@ -310,10 +310,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
 
       - name: Download binaries from artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           path: artifacts
 
